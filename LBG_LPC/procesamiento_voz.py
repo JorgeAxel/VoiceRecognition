@@ -3,10 +3,7 @@ from scipy.io import wavfile
 from glob import glob
 from LBG import extraer_lsf_señal, lbg_algorithm
 
-commands = [
-    "start", "stop", "pause", "next"
-]
-#users = ["axel", "daniel", "joel", "oscar"]
+commands = ["start", "stop", "pause", "next"]
 users = ["axel", "joel"]
 dataset_path = "dataset"
 codebook_path = "test_codebooks"
