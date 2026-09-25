@@ -9,10 +9,9 @@ freq = 16000
 samples_per_command = 5
 MICROFONO_ID = None
 
-commands = ["stop", "pause", "next"]
-#commands = ["pause"]  # Solo para pruebas rápidas
-dataset_path = "dataset/data_joel"
-train_test = "test"
+commands = ["stop", "pause", "next", "start"]
+dataset_path = "dataset/data_user"
+train_test = "test" # Change accordingly
 
 # =========================
 # CONFIGURACIÓN
