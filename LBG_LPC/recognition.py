@@ -18,7 +18,6 @@ codebook_path = "test_codebooks"
 def cargar_codebooks(palabras, tamaño, ruta_codebook):
     """
     Carga todos los codebooks entrenados desde los archivos .npy.
-    Retorna un diccionario: {palabra: arreglo_codebook}
     """
     codebooks = {}
     for palabra in palabras:
@@ -35,14 +34,6 @@ def distancia_vq(vectores_prueba, codebook):
     """
     Cálculo de la distancia de cuantización VQ entre una secuencia de vectores
     y un codebook.
-
-    Para cada vector de prueba, busca el codevector más cercano (vecino más
-    próximo en distancia IS) y acumula esas distancias mínimas.
-
-    La distancia promedio normalizada es la métrica de similitud final:
-        d_VQ = (1/T) * sum_t min_c d_IS(x_t, c)
-
-    Un valor menor indica mayor similitud con ese codebook.
     """
     total_distancia = 0.0
     num_vectores = 0
@@ -70,16 +61,6 @@ def distancia_vq(vectores_prueba, codebook):
 def reconocer_palabra(fs, señal, codebooks):
     """
     Reconocimiento de la palabra en un archivo .wav usando los codebooks entrenados.
-
-    Proceso:
-    1. Carga y recorte de la señal
-    2. Extracción de vectores LSF
-    3. Cálculo de distancia VQ a cada codebook
-    4. La palabra reconocida es la de menor distancia
-
-    Retorna:
-        palabra_reconocida: string
-        distancias:         diccionario {palabra: distancia}
     """
 
     if señal.ndim > 1:
@@ -117,7 +98,6 @@ def reconocer_palabra(fs, señal, codebooks):
         distancias[palabra] = distancia_vq(vectores_lsf, codebook)
 
     # La palabra con distancia mínima es la reconocida
-    # min(dict, key=dict.get) busca la clave con el valor mínimo
     palabra_reconocida = min(distancias, key=distancias.get)
 
     return palabra_reconocida, distancias
