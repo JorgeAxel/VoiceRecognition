@@ -2,33 +2,16 @@ import numpy as np
 from LPC import calcular_lpc
 
 # Coeficiente del filtro de preénfasis.
-# Rango típico: 0.90 – 0.97
-# - 0.95 es el valor estándar de la práctica
-# - Valores más altos -> realzan más las altas frecuencias
-# - Valores más bajos -> son más suaves
 COEF_PREENFASIS = 0.95
 
 # Longitud de la ventana de análisis en muestras
-# Con FS=16000 Hz: 320 muestras = 20 ms (valor estándar de la práctica)
-# - Aumento -> mayor resolución espectral, menor resolución temporal
-# - Disminución -> menor resolución espectral, mayor resolución temporal
 LONGITUD_VENTANA = 320
 
 # Salto (hop) entre tramas consecutivas en muestras
-# 128 muestras = 8 ms con FS=16000 Hz
-# - Salto menor -> más solapamiento -> más tramas -> más preciso pero más lento
-# - Salto mayor -> menos solapamiento -> menos tramas -> más rápido
 SALTO = 128
 
 # Orden del modelo LPC
-# La práctica especifica 12. Rango típico en voz: 10–16
-# - Orden mayor -> más detalle espectral, pero más sensible a ruido
-# - Orden menor -> espectro más suavizado, más robusto
 ORDEN_LPC = 12
-
-# Parámetros de ventana (se reutilizan las variables LONGITUD_VENTANA y SALTO del Paso 2)
-
-# Coeficiente de preénfasis (se reutiliza la variable COEF_PREENFASIS del Paso 2)
 
 # Valor de regularización (floor de energía de error)
 # Evita divisiones por cero en el cálculo de LPC para tramas de silencio
@@ -38,22 +21,17 @@ EPSILON = 1e-8
 MAX_ITER_KMEANS = 50
 
 # Umbral de convergencia del k-means
-# Cuando la mejora relativa en distorsión sea menor que esto, se detiene
 EPSILON_CONVERGENCIA = 1e-4
 
 # Factor de perturbación para el splitting
-# Cada centroide se divide en: centroide ± EPSILON_SPLIT
 EPSILON_SPLIT = 0.001
 
 # Regularización para la distancia de Itakura-Saito
-# Evita logaritmos de cero o divisiones por cero
 REG_IS = 1e-8
 
 def lpc_a_lsf(lpc):
     """
     Convierte coeficientes LPC a LSF (Line Spectral Frequencies).
-    LPC: [1, a1, a2, ..., ap]
-    Retorna LSF en radianes (rango 0 a pi).
     """
     p = len(lpc)  # Orden del filtro
     a = np.concatenate(([1.0], lpc))
@@ -66,6 +44,7 @@ def lpc_a_lsf(lpc):
     # Eliminar las raíces triviales en z=1 y z=-1
     p_reduced = np.polydiv(p_poly, [1, 1])[0]  # Eliminar la raíz en z=1
     q_reduced = np.polydiv(q_poly, [1, -1])[0]  # Eliminar la raíz en z=-1
+    
     # 3. Encontrar las raíces de ambos polinomios
     roots_p = np.roots(p_reduced)
     roots_q = np.roots(q_reduced)
@@ -87,17 +66,6 @@ def lpc_a_lsf(lpc):
 def distancia_itakura_saito_lsf(lsf_a, lsf_b):
     """
     Distancia de Itakura-Saito aproximada en el espacio LSF.
-
-    Dado que la conversión exacta a espectro LPC puede ser costosa trama a trama,
-    se usa una aproximación basada en diferencias de LSF con pesos que simulan
-    la sensibilidad perceptual:
-
-        d_IS_approx = sum( w_i * (lsf_a_i - lsf_b_i)^2 )
-
-    donde w_i son pesos que dan más importancia a los coeficientes bajos
-    (las frecuencias bajas del espectro, más relevantes perceptualmente).
-
-    Esta aproximación ponderada es estándar en literatura de VQ para voz.
     """
     # Pesos decrecientes con el índice: más peso a coefs de baja frecuencia
     orden = len(lsf_a)
@@ -110,10 +78,6 @@ def distancia_itakura_saito_lsf(lsf_a, lsf_b):
 def distancia_matriz(vectores, centroides):
     """
     Cálculo de la matriz de distancias IS entre todos los vectores y centroides.
-
-    Retorna:
-        D: arreglo de shape (num_vectores, num_centroides)
-           D[i, j] = distancia_IS entre vector i y centroide j
     """
     
     n_vec = len(vectores)
@@ -130,8 +94,6 @@ def distancia_matriz(vectores, centroides):
 def extraer_lsf_señal(señal, fs):
     """
     Aplicación de preénfasis + enmarcado + LPC -> LSF para toda la señal.
-    Retorna:
-        arreglo 2D de shape (num_tramas, orden_lpc).
     """
 
     # Preénfasis 
@@ -166,11 +128,6 @@ def extraer_lsf_señal(señal, fs):
 def kmeans_is(vectores, centroides_iniciales, max_iter=MAX_ITER_KMEANS):
     """
     K-means con distancia de Itakura-Saito.
-
-    Retorna:
-        centroides: codevectores finales, shape (k, dimension)
-        etiquetas:  índice del centroide más cercano para cada vector
-        distorsion: distancia IS promedio final
     """
     centroides = centroides_iniciales.copy()
     distorsion_anterior = np.inf
@@ -210,22 +167,6 @@ def kmeans_is(vectores, centroides_iniciales, max_iter=MAX_ITER_KMEANS):
 def lbg_algorithm(vectores, tamaño_codebook):
     """
     Algoritmo LBG (Linde-Buzo-Gray) para entrenamiento de VQ.
-
-    Pasos:
-    1. Iniciar con 1 centroide (media global)
-    2. Splitting: duplicar cada centroide con perturbación ± ε
-    3. K-means hasta convergencia
-    4. Repetir desde paso 2 hasta tener tamaño_codebook centroides
-
-    La potencia de 2 del tamaño se logra con log2(tamaño) rondas de splitting.
-    Si tamaño_codebook no es potencia de 2, se usa el mayor más cercano.
-
-    Parámetros:
-        vectores:        arreglo (N, dim) con todos los vectores de entrenamiento
-        tamaño_codebook: número deseado de codevectores (16, 32 o 64)
-
-    Retorna:
-        codebook: arreglo (tamaño_codebook, dim) con los codevectores finales
     """
     
     # Número de niveles de splitting (potencia de 2)
@@ -241,8 +182,6 @@ def lbg_algorithm(vectores, tamaño_codebook):
         n_nuevos   = n_actuales * 2
 
         # Splitting: duplicar cada centroide con perturbación
-        # centroide + ε (perturbación positiva)
-        # centroide - ε (perturbación negativa)
         perturbacion = EPSILON_SPLIT * np.ones(centroides.shape[1])
         superiores   = centroides + perturbacion
         inferiores   = centroides - perturbacion
