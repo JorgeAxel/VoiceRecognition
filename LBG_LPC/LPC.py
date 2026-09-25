@@ -6,21 +6,6 @@ ORDEN_LPC = 12
 def levinson_durbin(autocorr, orden):
     """
     Algoritmo de Levinson-Durbin para obtener coeficientes LPC.
-
-    Implementación del algoritmo directamente para no depender de toolboxes.
-
-    Entrada:
-        autocorr: arreglo de coeficientes de autocorrelación [R(0), R(1), ..., R(p)]
-        orden:    orden del modelo LPC (p)
-    Salida:
-        a:    coeficientes LPC [a1, a2, ..., ap] (sin el 1 inicial)
-        error: energía del error de predicción
-
-    El algoritmo resuelve el sistema de Yule-Walker:
-        [R(0)   R(1)  ... R(p-1)] [a1]   [R(1)]
-        [R(1)   R(0)  ... R(p-2)] [a2] = [R(2)]
-        ...
-        [R(p-1) R(p-2) ... R(0) ] [ap]   [R(p)]
     """
 
     a      = np.zeros(orden)      # Coeficientes LPC
@@ -50,17 +35,11 @@ def levinson_durbin(autocorr, orden):
 def calcular_lpc(trama, orden=ORDEN_LPC):
     """
     Cálculo de los coeficientes LPC de una trama.
-
-    Pasos:
-    1. Cálculo de autocorrelación de la trama
-    2. Resolución de Levinson-Durbin
-    3. Retorno de coeficientes
     """
 
-    # np.correlate computa correlación cruzada; mode='full' da 2N-1 puntos
-    # Se usan solo los primeros (orden+1) valores de la autocorrelación
+    # np.correlate computa correlación cruzada
     autocorr_completa = np.correlate(trama, trama, mode='full')
-    # La autocorrelación tiene centro en índice N-1. Se toma desde ahí
+    # La autocorrelación tiene centro en índice N-1
     centro = len(trama) - 1
     autocorr = autocorr_completa[centro : centro + orden + 1]
 
